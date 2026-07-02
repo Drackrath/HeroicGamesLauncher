@@ -313,7 +313,11 @@ export default class SteamLibraryManager implements LibraryManager {
       return []
     }
     try {
-      const games = await runAurelia<AureliaLibraryGame[]>(['list', '-i'])
+      const games = await runAurelia<AureliaLibraryGame[]>([
+        'list',
+        '-i',
+        '--check-updates'
+      ])
       const updates = games
         .filter((game) => game.update_available)
         .map((game) => String(game.app_id))

@@ -155,5 +155,8 @@
   },
   "resolutions": {
     "ts-morph": "17.0.1"
+  },
+  "patchedDependencies": {
+    "@types/node@22.19.3@22.19.3": "patches/@types__node@22.19.3.patch"
   }
 }

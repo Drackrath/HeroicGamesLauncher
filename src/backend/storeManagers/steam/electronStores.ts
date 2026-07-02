@@ -18,7 +18,7 @@ const configStore = new TypeCheckedStoreBackend('steamConfigStore', {
 const libraryStore = new CacheStore<GameInfo[], 'games'>('steam_library', null)
 
 // Caches the Steam storefront "appdetails" response
-const extraInfoStore = new CacheStore<ExtraInfo>('steam_extra_info_v2')
+const extraInfoStore = new CacheStore<ExtraInfo>('steam_extra_info_v3')
 
 const installInfoStore = new CacheStore<SteamInstallInfo>('steam_install_info')
 

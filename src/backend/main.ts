@@ -58,7 +58,8 @@ import {
   writeConfig,
   createNecessaryFolders,
   clearAchievementCache,
-  getGame
+  getGame,
+  focusGameWindow
 } from './utils'
 import { startPlausible } from './utils/plausible'
 
@@ -587,7 +588,11 @@ addHandler('checkDiskSpace', async (_e, folder): Promise<DiskSpaceData> => {
 addHandler('isFrameless', () => isFrameless())
 addHandler('isMinimized', () => !!getMainWindow()?.isMinimized())
 addHandler('isMaximized', () => !!getMainWindow()?.isMaximized())
+addHandler('focusGameWindow', () => {
+  focusGameWindow()
+})
 addListener('minimizeWindow', () => getMainWindow()?.minimize())
+addListener('showWindow', () => getMainWindow()?.show())
 addListener('maximizeWindow', () => getMainWindow()?.maximize())
 addListener('unmaximizeWindow', () => getMainWindow()?.unmaximize())
 addListener('closeWindow', () => getMainWindow()?.close())
@@ -765,7 +770,8 @@ addHandler('getExtraInfo', async (event, appName, runner) => {
   ) {
     return null
   }
-  return libraryManagerMap[runner].getGame(appName).getExtraInfo()
+  const lang = runner === 'steam' ? i18next.language : undefined
+  return libraryManagerMap[runner].getGame(appName).getExtraInfo(lang)
 })
 
 addHandler('getGameSettings', async (event, appName, runner) => {
@@ -796,10 +802,11 @@ addHandler(
       if (info === undefined) return null
       return info
     } catch (error) {
-      logError(
-        error,
-        runner === 'legendary' ? LogPrefix.Legendary : LogPrefix.Gog
-      )
+      const logPrefix =
+        runner === 'legendary' ? LogPrefix.Legendary :
+        runner === 'steam' ? LogPrefix.Steam :
+        LogPrefix.Gog
+      logError(error, logPrefix)
       return null
     }
   }

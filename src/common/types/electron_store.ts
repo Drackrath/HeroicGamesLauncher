@@ -90,6 +90,7 @@ export interface StoreStructure {
     username?: string
     accounts?: SteamAccount[]
     pendingDlc?: SteamPendingDlcChange[]
+    steamIntegration?: Record<string, boolean>
   }
   nileConfigStore: {
     userData?: NileUserData

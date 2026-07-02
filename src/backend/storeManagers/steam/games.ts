@@ -1,4 +1,6 @@
 import { existsSync } from 'graceful-fs'
+import { dialog } from 'electron'
+import { t } from 'i18next'
 import { GameConfig } from '../../game_config'
 import {
   ExtraInfo,
@@ -37,7 +39,11 @@ import {
   makeAureliaProgressHandler,
   AureliaError
 } from './aurelia'
-import type { AureliaAchievementsResponse } from './aurelia_types'
+import type {
+  AureliaAchievementsResponse,
+  AureliaCloudSyncResponse,
+  AureliaCloudConflict
+} from './aurelia_types'
 
 import type LogWriter from 'backend/logger/log_writer'
 
@@ -212,9 +218,25 @@ export default class SteamGame implements Game {
     )
   }
 
-  async getExtraInfo(): Promise<ExtraInfo> {
+  getSteamIntegrationEnabled(): boolean {
+    const info = libraryManagerMap['steam'].getGameInfo(this.id)
+    if (info?.isSteamFamilyShare) {
+      return true
+    }
+    return configStore.get('steamIntegration', {})[this.id] === true
+  }
+
+  setSteamIntegrationEnabled(enabled: boolean): void {
+    const map = configStore.get('steamIntegration', {})
+    map[this.id] = enabled
+    configStore.set('steamIntegration', map)
+  }
+
+  async getExtraInfo(lang?: string): Promise<ExtraInfo> {
     const appName = this.id
-    const cached = extraInfoStore.get(appName)
+    const steamLang = lang ? toSteamApiLanguage(lang) : 'english'
+    const cacheKey = `${appName}-${steamLang}`
+    const cached = extraInfoStore.get(cacheKey)
     if (cached) {
       return cached
     }
@@ -237,7 +259,10 @@ export default class SteamGame implements Game {
     }
 
     try {
-      const [details] = await fetchAureliaInfo([appName], { extended: true })
+      const [details] = await fetchAureliaInfo([appName], {
+        extended: true,
+        language: steamLang
+      })
       if (!details) {
         return empty
       }
@@ -274,7 +299,7 @@ export default class SteamGame implements Game {
             : undefined
       }
 
-      extraInfoStore.set(appName, extraInfo)
+      extraInfoStore.set(cacheKey, extraInfo)
       return extraInfo
     } catch (error) {
       logError(
@@ -503,7 +528,11 @@ export default class SteamGame implements Game {
   }
 
   /**
-   * Runs a Steam Cloud sync
+   * Runs a Steam Cloud sync with conflict resolution.
+   *
+   * Aurelia compares content hashes and, when the cloud and local copies have
+   * diverged, leaves both untouched and reports a conflict. When that happens
+   * we ask the user which side to keep and re-run with `--resolve`.
    */
   private async syncCloudSaves(
     appName: string,
@@ -513,14 +542,76 @@ export default class SteamGame implements Game {
     const action = direction === 'down' ? 'download' : 'upload'
     try {
       await logWriter.logInfo(`Steam Cloud sync (${action})`)
-      await runAurelia(['cloud', 'sync', appName, `--${direction}`], {
-        abortId: `${appName}-cloud-${direction}`,
-        logWriters: [logWriter]
-      })
+      const result = await runAurelia<AureliaCloudSyncResponse>(
+        ['cloud', 'sync', appName, `--${direction}`],
+        {
+          abortId: `${appName}-cloud-${direction}`,
+          logWriters: [logWriter]
+        }
+      )
+      if (result?.status === 'conflicts' && result.conflicts?.length) {
+        await this.resolveCloudConflicts(appName, result.conflicts, logWriter)
+      }
     } catch (error) {
       logWarning(
         [
           `Failed to ${action} Steam Cloud saves for ${appName}`,
+          describeError(error)
+        ],
+        LogPrefix.Steam
+      )
+    }
+  }
+
+  /**
+   * Prompt the user to keep either the Steam Cloud copy or the on-disk copy
+   * of each conflicting save file, then re-run the sync with `--resolve`.
+   */
+  private async resolveCloudConflicts(
+    appName: string,
+    conflicts: AureliaCloudConflict[],
+    logWriter: LogWriter
+  ): Promise<void> {
+    const fileList = conflicts.map((c) => `  - ${c.filename}`).join('\n')
+    await logWriter.logInfo(
+      `Steam Cloud sync conflict detected for ${conflicts.length} file(s)`
+    )
+    const { response } = await dialog.showMessageBox({
+      type: 'warning',
+      buttons: [
+        t('box.steam.cloudConflict.keepLocal', 'Use Local save'),
+        t('box.steam.cloudConflict.keepCloud', 'Use Cloud save')
+      ],
+      defaultId: 0,
+      cancelId: -1,
+      title: t(
+        'box.steam.cloudConflict.title',
+        'Steam Cloud save conflict'
+      ),
+      message: t('box.steam.cloudConflict.message', {
+        defaultValue:
+          'The Cloud and Local saves for {{game}} have diverged, choose which copy to keep:\n\n{{files}}',
+        game: this.getGameInfo().title,
+        files: fileList
+      })
+    })
+    const keepLocal = response === 0
+    try {
+      await runAurelia(
+        [
+          'cloud',
+          'sync',
+          appName,
+          keepLocal ? '--up' : '--down',
+          '--resolve'
+        ],
+        { abortId: `${appName}-cloud-resolve`, logWriters: [logWriter] }
+      )
+      await logWriter.logInfo('Steam Cloud conflict resolved')
+    } catch (error) {
+      logWarning(
+        [
+          `Failed to resolve Steam Cloud conflict for ${appName}`,
           describeError(error)
         ],
         LogPrefix.Steam
@@ -560,8 +651,9 @@ export default class SteamGame implements Game {
 
     sendGameStatusUpdate({ appName, runner: 'steam', status: 'playing' })
 
+    const useSteamIntegration = this.getSteamIntegrationEnabled()
     const res = await libraryManagerMap['steam'].runRunnerCommand(
-      ['play', appName, '--json'],
+      ['play', appName, '--json', ...(useSteamIntegration ? ['--steam'] : [])],
       { abortId: appName, logWriters: [logWriter] }
     )
 
@@ -723,7 +815,7 @@ export default class SteamGame implements Game {
       await runAurelia(['stop', appName])
     } catch (error) {
       logWarning(
-        [`Failed to stop ${appName}`, describeError(error)],
+        [`Failed to stop ${appName} via aurelia`, describeError(error)],
         LogPrefix.Steam
       )
     }

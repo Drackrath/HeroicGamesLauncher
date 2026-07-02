@@ -716,7 +716,7 @@ export interface ToolArgs {
   action: 'backup' | 'restore'
 }
 
-export type StatusPromise = Promise<{ status: 'done' | 'error' | 'abort' }>
+export type StatusPromise = Promise<{ status: 'done' | 'error' | 'abort'; error?: string }>
 
 export interface GameScoreInfo {
   score: string

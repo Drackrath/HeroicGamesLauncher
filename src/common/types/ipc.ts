@@ -109,6 +109,7 @@ interface SyncIPCFunctions {
   cancelDownload: (removeDownloaded: boolean) => void
   copySystemInfoToClipboard: () => void
   minimizeWindow: () => void
+  showWindow: () => void
   maximizeWindow: () => void
   unmaximizeWindow: () => void
   closeWindow: () => void
@@ -134,6 +135,7 @@ interface SyncIPCFunctions {
     art_cover?: string
     art_square?: string
   }) => void
+  setSteamIntegrationEnabled: (appName: string, enabled: boolean) => void
 }
 
 /*
@@ -202,6 +204,8 @@ interface AsyncIPCFunctions {
   getZoomUserInfo: () => Promise<{ username: string } | undefined>
   getSteamUserInfo: () => Promise<{ username: string } | undefined>
   getSteamDlcInfo: (appName: string) => Promise<SteamDLCInfo[]>
+  getSteamIntegrationEnabled: (appName: string) => Promise<boolean>
+  focusGameWindow: () => Promise<void>
   setSteamDlcEnabled: (dlcAppId: string, enabled: boolean) => Promise<void>
   isLoggedIn: () => boolean
   login: (sid: string) => Promise<{
