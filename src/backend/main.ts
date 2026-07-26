@@ -1,4 +1,8 @@
-import { initImagesCache } from './images_cache'
+import {
+  initImagesCache,
+  clearImagesCache,
+  removeImageFromCache
+} from './images_cache'
 import { fetchLastestReleases } from './utils/releases'
 import { DiskSpaceData, StatusPromise, WineInstallation } from 'common/types'
 import * as path from 'path'
@@ -243,8 +247,6 @@ async function initializeWindow(): Promise<BrowserWindow> {
       ? `${process.env.ELECTRON_RENDERER_URL}#${startHash}`
       : process.env.ELECTRON_RENDERER_URL
     mainWindow.loadURL(devUrl)
-    // Open the DevTools.
-    mainWindow.webContents.openDevTools()
   } else {
     Menu.setApplicationMenu(null)
     mainWindow.loadFile(
@@ -724,6 +726,15 @@ addListener('clearAchievementCache', (event, appName: string) => {
     'Achievement cache was cleared for game: ' + appName,
     LogPrefix.Backend
   )
+})
+
+addHandler('clearImagesCache', () => {
+  clearImagesCache()
+  logInfo('Image cache was cleared', LogPrefix.Backend)
+})
+
+addHandler('removeImageFromCache', (event, url: string) => {
+  removeImageFromCache(url)
 })
 
 addListener('resetHeroic', () => resetHeroic())

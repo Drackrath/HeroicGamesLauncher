@@ -70,6 +70,7 @@ import { readdir, lstat } from 'fs/promises'
 import { getHeroicVersion } from './utils/systeminfo/heroicVersion'
 import { backendEvents } from './backend_events'
 import { wikiGameInfoStore } from './wiki_game_info/electronStore'
+import { clearImagesCache } from './images_cache'
 import EasyDl from 'easydl'
 
 import {
@@ -411,6 +412,12 @@ function clearCache(
   if (!fromVersionChange) {
     deviceNameCache.clear()
     vendorNameCache.clear()
+  }
+  // Clear the downloaded image cache so covers are re-fetched fresh.
+  try {
+    clearImagesCache()
+  } catch (e) {
+    logWarning(['Failed to clear images cache:', e], LogPrefix.Backend)
   }
 }
 

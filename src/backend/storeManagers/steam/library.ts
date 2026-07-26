@@ -56,6 +56,20 @@ function describeError(error: unknown): string {
   return error instanceof AureliaError ? error.message : String(error)
 }
 
+const STEAM_CDN = 'https://shared.akamai.steamstatic.com/store_item_assets/steam'
+
+function getSteamAssetUrls(appId: string) {
+  return {
+    header: `${STEAM_CDN}/apps/${appId}/header.jpg`,
+    // library_600x900 is the tall portrait cover used by the new Steam
+    // library — matches what Epic provides as `art_square` for cards.
+    capsule: `${STEAM_CDN}/apps/${appId}/library_600x900.jpg`,
+    hero: `${STEAM_CDN}/apps/${appId}/library_hero.jpg`,
+    logo: `${STEAM_CDN}/apps/${appId}/logo.png`,
+    store_url: `https://store.steampowered.com/app/${appId}/`
+  }
+}
+
 /**
  * Steam library manager.
  */
@@ -161,15 +175,16 @@ export default class SteamLibraryManager implements LibraryManager {
   steamToUnifiedInfo(game: AureliaLibraryGame): GameInfo {
     const appId = String(game.app_id)
     const assets = game.assets ?? {}
+    const fallback = getSteamAssetUrls(appId)
     return {
       runner: 'steam',
       app_name: appId,
       title: game.name,
-      art_cover: assets.header ?? '',
-      art_square: assets.capsule ?? '',
-      art_background: assets.hero ?? '',
-      art_logo: assets.logo,
-      store_url: game.store_url,
+      art_cover: assets.header || fallback.header,
+      art_square: assets.capsule || fallback.capsule,
+      art_background: assets.hero || fallback.hero,
+      art_logo: assets.logo || fallback.logo,
+      store_url: game.store_url || fallback.store_url,
       folder_name: game.name,
       install: {},
       is_installed: false,

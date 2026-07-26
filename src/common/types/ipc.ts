@@ -86,6 +86,8 @@ interface SyncIPCFunctions {
   removeFolder: ([path, folderName]: [string, string]) => void
   clearCache: (showDialog?: boolean, fromVersionChange?: boolean) => void
   clearAchievementCache: (appName: string) => void
+  clearImagesCache: () => void
+  removeImageFromCache: (url: string) => void
   resetHeroic: () => void
   createNewWindow: (url: string) => void
   logoutGOG: () => void
@@ -163,6 +165,8 @@ interface TestSyncIPCFunctions {
 // ts-prune-ignore-next
 interface AsyncIPCFunctions {
   kill: (appName: string, runner: Runner) => Promise<void>
+  clearImagesCache: () => Promise<void>
+  removeImageFromCache: (url: string) => Promise<void>
   checkDiskSpace: (folder: string) => Promise<DiskSpaceData>
   callTool: (args: Tools) => Promise<void>
   runWineCommand: (
